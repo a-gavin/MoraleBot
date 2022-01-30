@@ -69,12 +69,14 @@ jobs:
       id: build-image
 
       env:
+        DISCORD_BOT_ID: ${{ secrets.DISCORD_BOT_ID }}
+        OWNER_ID: ${{ secrets.OWNER_ID }}
+        MONGO_URI: ${{ secrets.MONGO_URI }}
+        CLIENT_ID: ${{ secrets.CLIENT_ID }}
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
         IMAGE_TAG: latest
-      run: |
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+      run: bash scripts/build_and_push_image.sh
     
     #- name: Fill in the new image ID in the Amazon ECS task definition
     #  id: task-def

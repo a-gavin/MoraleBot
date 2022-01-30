@@ -23,4 +23,13 @@ COPY database database
 COPY events events
 COPY *.js LICENSE ./
 
+# Initialize config file using build args
+ARG DISCORD_BOT_ID
+ARG OWNER_ID
+ARG MONGO_URI
+ARG CLIENT_ID
+COPY init_config.sh ./
+RUN bash init_config.sh "${DISCORD_BOT_ID}" "${OWNER_ID}" "${MONGO_URI}""${CLIENT_ID}" \
+    && rm init_config.sh
+
 ENTRYPOINT [ "node", "index.js" ]
