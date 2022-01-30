@@ -5,17 +5,24 @@ name: Test, Build, and Deploy
 
 on:
   push:
-    branches: [ testing ]
+    branches: [ master ]
   pull_request:
-    branches: [ testing ]
+    branches: [ master ]
 
 # Version of node used
 #   Define here to reference in rest of pipeline
 env:
-  node-version: 16.13
+  NODE_VERSION: 16.13
+  AWS_REGION: us-east-2
+  ECR_REPOSITORY: morale_bot
+  ECS_SERVICE: MY_ECS_SERVICE
+  ECS_CLUSTER: MY_ECS_CLUSTER
+  ECS_TASK_DEFINITION: MY_ECS_TASK_DEFINITION
+  CONTAINER_NAME: MY_CONTAINER_NAME
 
 jobs:
-  test:
+  run-tests:
+    name: Run tests
     runs-on: ubuntu-latest
 
     steps:
@@ -23,10 +30,10 @@ jobs:
     - uses: actions/checkout@v2
     
     # Setup Node
-    - name: Use Node.js ${{ env.node-version }}
+    - name: Use Node.js ${{ env.NODE_VERSION }}
       uses: actions/setup-node@v2
       with:
-        node-version: ${{ env.node-version }}
+        node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
     
     # Install requried dependencies tailored to CI builds.
@@ -38,30 +45,49 @@ jobs:
     #       See https://docs.npmjs.com/cli/v8/commands/npm-test
     - run: npm test
 
-  build-and-push:
-    needs: test
+  deploy:
+    name: Deploy application
+    needs: run-tests
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout
+      uses: actions/checkout@v2
 
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v1
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-2
+        aws-region: ${{ env.AWS_REGION }}
 
     - name: Login to Amazon ECR
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v1
 
-    - name: Build, Tag, and Push the Image to Amazon ECR
-      id: build-and-push-image
+    - name: Build, tag, and push the image to Amazon ECR
+      id: build-image
+
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: morale_bot
+        ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
         IMAGE_TAG: latest
       run: |
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+    
+    #- name: Fill in the new image ID in the Amazon ECS task definition
+    #  id: task-def
+    #  uses: aws-actions/amazon-ecs-render-task-definition@v1
+    #  with:
+    #    task-definition: ${{ env.ECS_TASK_DEFINITION }}
+    #    container-name: ${{ env.CONTAINER_NAME }}
+    #    image: ${{ steps.build-image.outputs.image }}
+
+    #- name: Deploy Amazon ECS task definition
+    #  uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+    #  with:
+    #    task-definition: ${{ steps.task-def.outputs.task-definition }}
+    #    service: ${{ env.ECS_SERVICE }}
+    #    cluster: ${{ env.ECS_CLUSTER }}
+    #    wait-for-service-stability: true
