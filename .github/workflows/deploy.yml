@@ -15,10 +15,10 @@ env:
   NODE_VERSION: 16.13
   AWS_REGION: us-east-2
   ECR_REPOSITORY: morale_bot
-  ECS_SERVICE: MY_ECS_SERVICE
-  ECS_CLUSTER: MY_ECS_CLUSTER
-  ECS_TASK_DEFINITION: MY_ECS_TASK_DEFINITION
-  CONTAINER_NAME: MY_CONTAINER_NAME
+  IMAGE_TAG: latest
+  ECS_CLUSTER: moraleBotCluster
+  ECS_TASK_DEFINITION: task_definition.json
+  CONTAINER_NAME: moraleBotContainer
 
 jobs:
   run-tests:
@@ -75,21 +75,20 @@ jobs:
         CLIENT_ID: ${{ secrets.CLIENT_ID }}
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
-        IMAGE_TAG: latest
+        IMAGE_TAG: ${{ env.IMAGE_TAG }}
       run: bash scripts/build_and_push_image.sh
     
-    #- name: Fill in the new image ID in the Amazon ECS task definition
-    #  id: task-def
-    #  uses: aws-actions/amazon-ecs-render-task-definition@v1
-    #  with:
-    #    task-definition: ${{ env.ECS_TASK_DEFINITION }}
-    #    container-name: ${{ env.CONTAINER_NAME }}
-    #    image: ${{ steps.build-image.outputs.image }}
+    - name: Fill in the new image ID in the Amazon ECS task definition
+      id: task-def
+      uses: aws-actions/amazon-ecs-render-task-definition@v1
+      with:
+        task-definition: ${{ env.ECS_TASK_DEFINITION }}
+        container-name: ${{ env.CONTAINER_NAME }}
+        image: ${{ secrets.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
 
-    #- name: Deploy Amazon ECS task definition
-    #  uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-    #  with:
-    #    task-definition: ${{ steps.task-def.outputs.task-definition }}
-    #    service: ${{ env.ECS_SERVICE }}
-    #    cluster: ${{ env.ECS_CLUSTER }}
-    #    wait-for-service-stability: true
+    - name: Deploy Amazon ECS task definition
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      with:
+        task-definition: ${{ steps.task-def.outputs.task-definition }}
+        cluster: ${{ env.ECS_CLUSTER }}
+        wait-for-service-stability: true
