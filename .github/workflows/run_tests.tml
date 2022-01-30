@@ -1,16 +1,16 @@
 # This workflow will do a clean installation of node dependencies, cache/restore them, build the source code and run tests across a single version of node
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-nodejs-with-github-actions
 
-name: Test, Build, and Deploy
+name: Run tests
 
 on:
   push:
-    branches: [ testing ]
+    branches: [ develop ]
   pull_request:
-    branches: [ testing ]
+    branches: [ develop ]
 
 # Version of node used
-#   Define here to reference in rest of pipeline
+#   Define here to reference in rest of workflow
 env:
   node-version: 16.13
 
@@ -37,31 +37,3 @@ jobs:
     # Run tests as specified by the projects scripts object
     #       See https://docs.npmjs.com/cli/v8/commands/npm-test
     - run: npm test
-
-  build-and-push:
-    needs: test
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v2
-
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-2
-
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
-
-    - name: Build, Tag, and Push the Image to Amazon ECR
-      id: build-and-push-image
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: morale_bot
-        IMAGE_TAG: latest
-      run: |
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
