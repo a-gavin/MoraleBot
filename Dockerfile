@@ -1,4 +1,4 @@
-FROM node:16.6.0
+FROM node:16.13.2
 
 # Install system dependencies
 RUN set -x \
